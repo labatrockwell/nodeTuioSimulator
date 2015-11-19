@@ -1,0 +1,24 @@
+{
+  "name": "osc-sim",
+  "version": "1.0.0",
+  "description": "",
+  "main": "client.js",
+  "dependencies": {
+    "node-osc": "^1.1.0",
+    "p5": "^0.4.19"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/labatrockwell/nodeTuioSimulator.git"
+  },
+  "author": "davidptracy",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/labatrockwell/nodeTuioSimulator/issues"
+  },
+  "homepage": "https://github.com/labatrockwell/nodeTuioSimulator#readme"
+}
