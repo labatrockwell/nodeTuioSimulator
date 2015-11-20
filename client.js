@@ -3,21 +3,28 @@
 // davidptracy for LAB at Rockwellgroup
 
 var osc = require('node-osc');
-
 var client = new osc.Client('127.0.0.1', 3333); //localhost and standard TUIO ports
 
 var touches = new Array();
 
-for (var i = 0; i < 50; i++) {
+var touchIndexCounter = 0;
+
+for (var i = 0; i < 10; i++) {
 	// iterator serves as sessionId for each touch
-	var touch = new Touch(i);
+	var random = getRandomRange(25, 100);
+	console.log("Creating Touch with lifespan of " + random);
+
+	var touch = new Touch(i, random );
 	touches.push(touch);
+	touchIndexCounter ++; // keep track of our lifespan
 };
 
 var fSeq = 0; //used to set a unique frame id to conclude each message chunk
 
 // if the app is terminated, this function will reset the frame id and touch ids
 var reset = function(){
+
+	console.log("Resetting all touches ...");
 
 	var aliveMsg =  new osc.Message('/tuio/2Dcur')
 	aliveMsg.append("alive");
@@ -31,58 +38,107 @@ var reset = function(){
 	client.send(fseqMsg, function(err){
 		if (err) console.log(err);
 	});
+}
 
+var addTouch = function(){
+	var touch = new Touch(touchIndexCounter);
+	touches.push(touch);
 }
 
 // build the message bundle and send it
 var sendMessage = function(){
+	aliveMessage();
+	setMessage();
+	frameSequenceMessage();
 
-	//the alive message must include all of the active touch sessionIds, otherwise they will be deleted
-	var aliveMsg =  new osc.Message('/tuio/2Dcur')
+	cleanupTouches();
+}
+
+// 1 -----> send the alive message first
+var aliveMessage = function() {
+	var aliveMsg = new osc.Message('/tuio/2Dcur');
 	aliveMsg.append("alive");
-	for (var i = 0; i < touches.length; i++) {
-		//include each sessionId which corresponds with touch array
-		aliveMsg.append(i);
-	};
-	//send the alive message first
+	//add all active touches
+
+	for (touch of touches){
+		if ( touch.isAlive() ){
+			aliveMsg.append( touch.getSessionId() );
+		}
+	}
+
 	client.send(aliveMsg, function(err){
 		if (err) console.log(err);
+		// console.log(aliveMsg);
 	});
 
-	//send the updated set message for each touch (position, etc)
+}
+
+// 2 -----> send the updated set message for each touch (position, etc)
+var setMessage = function() {
 	for (var i = 0; i < touches.length; i++) {
 		touches[i].update();
 		touches[i].sendMessage();
 	};
+	
+}
 
-	//finally send the frame sequence message with unique ID to conclude the tuio chunk
+// 3 -----> finally send the frame sequence message with unique ID to conclude the tuio chunk
+var frameSequenceMessage = function() {
 	var fseqMsg =  new osc.Message('/tuio/2Dcur')
 	fseqMsg.append("fseq");
 	fseqMsg.append(fSeq); //sessionId
 	client.send(fseqMsg, function(err){
 		if (err) console.log(err);
-		console.log(fseqMsg);
 	});
+	fSeq ++; // frame sequence must be incremented each call so its unique
+}
 
-	fSeq ++; // frame sequence must be incremented each call 
+var cleanupTouches = function(){
 
+	var deadTouches = new Array();
+
+	//loop through all touches, get index of dead touches
+	for (var i=0; i<touches.length; i++){
+		if ( !touches[i].isAlive() ){
+			console.log("Alive status: ");
+			console.log( touches[i].isAlive() );
+			deadTouches.push(i);
+		}
+	}
+
+	//now loop through deadTouches, removing items from touches array
+	for (var i =0; i<deadTouches.length; i++){
+		touches.splice(deadTouches[i], 1);
+
+		console.log("Adding New Touch with ID: " + touchIndexCounter);
+		var touch = new Touch(touchIndexCounter, 25 );
+		touches.push(touch);
+		touchIndexCounter ++;
+	}	
+}
+
+
+function getRandomRange(_min, _max){
+	return Math.random()*(_max - _min)+ _min;
 }
 
 reset();
-
 setInterval(sendMessage, 100);
 
 // =====================================================
 // ================== Touch Class ======================
 // =====================================================
 
-function Touch(_sessionId){
+function Touch(_sessionId, _lifespan){
 
 	this.location		= {"x": Math.random(), "y": Math.random() };
 	this.velocity		= {"x": Math.random()/100, "y": Math.random()/100 };
 	this.acceleration	= Math.random();
 	this.sessionId		= _sessionId;
 	this.fSeq 			= _sessionId;
+	this.lifeSpan		= _lifespan;
+	this.lifeCounter 	= 0;
+	this.alive 			= true;
 };
 
 Touch.prototype.update = function(){
@@ -94,24 +150,43 @@ Touch.prototype.update = function(){
 	if (this.location.x > 1.0) this.location.x = 0.125;
 	if (this.location.y > 1.0) this.location.y = 0.125;	
 
+	if(this.lifeCounter < this.lifeSpan) this.lifeCounter ++;
+	else this.alive = false;
+
 };
 
 Touch.prototype.sendMessage = function(){
 
-	var setMsg =  new osc.Message('/tuio/2Dcur')
-	setMsg.append("set");
-	setMsg.append(this.sessionId); //sessionId
-	setMsg.append( this.location.x ); //x_pos
-	setMsg.append( this.location.y ); //y_pos
-	setMsg.append( this.velocity.x ); //x_vel
-	setMsg.append( this.velocity.y ); //y_vel
-	setMsg.append( this.acceleration ); //acceleration
-	client.send(setMsg, function(err){
-		if (err) console.log(err);
-		console.log(setMsg);
-	});
+	if (this.alive){
+
+		var setMsg =  new osc.Message('/tuio/2Dcur')
+		setMsg.append("set");
+		setMsg.append(this.sessionId); //sessionId
+		setMsg.append( this.location.x ); //x_pos
+		setMsg.append( this.location.y ); //y_pos
+		setMsg.append( this.velocity.x ); //x_vel
+		setMsg.append( this.velocity.y ); //y_vel
+		setMsg.append( this.acceleration ); //acceleration
+		client.send(setMsg, function(err){
+			if (err) console.log(err);
+			// console.log(setMsg);
+		});
+		
+	}
 };
 
+Touch.prototype.getSessionId = function(){
+	return this.sessionId;
+}
 
+Touch.prototype.isAlive = function(){
+	if (this.alive) return true;
+	else return false;
+}
 
-
+// method to cleanup touches on program exit	
+process.on('SIGINT', function() {
+  console.log('TEST');
+  reset();
+  process.exit();
+});
