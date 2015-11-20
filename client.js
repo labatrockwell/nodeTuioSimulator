@@ -126,7 +126,7 @@ var cleanupTouches = function(){
 		touches.splice(deadTouches[i], 1);
 
 		console.log("Adding New Touch with ID: " + touchIndexCounter);
-		var touch = new Touch(touchIndexCounter, 25 );
+		var touch = new Touch(touchIndexCounter, getRandomRange(intervalMin, intervalMax) );
 		touches.push(touch);
 		touchIndexCounter ++;
 	}	
