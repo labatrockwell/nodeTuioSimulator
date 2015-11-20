@@ -9,9 +9,21 @@ var touches = new Array();
 
 var touchIndexCounter = 0;
 
-for (var i = 0; i < 10; i++) {
+var touchCount 	= process.argv[2];
+var intervalMin = process.argv[3];
+var intervalMax = process.argv[4];
+
+// if we are missing arguments from the command line ...
+if(touchCount == null || intervalMin == null || intervalMax == null){
+	console.log("client.js requires (3) arguments to run. Please re-run as follows:");
+	console.log("---->	node client.js [intial touch count] [min lifespan] [max lifespan] ");
+	console.log("bracketed elements of the above are numbers greater than 0");
+	process.exit();
+} 
+
+for (var i = 0; i < touchCount; i++) {
 	// iterator serves as sessionId for each touch
-	var random = getRandomRange(25, 100);
+	var random = getRandomRange(intervalMin, intervalMax);
 	console.log("Creating Touch with lifespan of " + random);
 
 	var touch = new Touch(i, random );
@@ -100,8 +112,6 @@ var cleanupTouches = function(){
 	//loop through all touches, get index of dead touches
 	for (var i=0; i<touches.length; i++){
 		if ( !touches[i].isAlive() ){
-			console.log("Alive status: ");
-			console.log( touches[i].isAlive() );
 			deadTouches.push(i);
 		}
 	}
@@ -116,7 +126,6 @@ var cleanupTouches = function(){
 		touchIndexCounter ++;
 	}	
 }
-
 
 function getRandomRange(_min, _max){
 	return Math.random()*(_max - _min)+ _min;
