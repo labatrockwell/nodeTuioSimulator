@@ -21,6 +21,7 @@ if(touchCount == null || intervalMin == null || intervalMax == null){
 	process.exit();
 } 
 
+// start with an initial amount of touches
 for (var i = 0; i < touchCount; i++) {
 	// iterator serves as sessionId for each touch
 	var random = getRandomRange(intervalMin, intervalMax);
@@ -68,6 +69,9 @@ var sendMessage = function(){
 
 // 1 -----> send the alive message first
 var aliveMessage = function() {
+
+	aliveTouches = new Array();
+
 	var aliveMsg = new osc.Message('/tuio/2Dcur');
 	aliveMsg.append("alive");
 	//add all active touches
@@ -75,12 +79,13 @@ var aliveMessage = function() {
 	for (touch of touches){
 		if ( touch.isAlive() ){
 			aliveMsg.append( touch.getSessionId() );
+			aliveTouches.push( touch.getSessionId() );
 		}
 	}
 
 	client.send(aliveMsg, function(err){
 		if (err) console.log(err);
-		// console.log(aliveMsg);
+		console.log(aliveTouches);
 	});
 
 }
@@ -133,6 +138,9 @@ function getRandomRange(_min, _max){
 
 reset();
 setInterval(sendMessage, 100);
+
+
+
 
 // =====================================================
 // ================== Touch Class ======================
